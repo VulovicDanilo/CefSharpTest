@@ -19,11 +19,32 @@ namespace CefSharpTest
         public ChromiumCefSharp()
         {
             InitializeComponent();
-            browser = new ChromiumWebBrowser("www.google.rs");
+
+            InitializeBrowser("localhost:55000");
+        }
+
+        private void InitializeBrowser(string url)
+        {
+            browser = new ChromiumWebBrowser(url);
 
             tableLayout.Controls.Add(browser, 0, 0);
-            browser.Size = new Size((int) (this.Width * 0.75), this.Height);
+            browser.Size = new Size((int)(this.Width * 0.75), this.Height);
 
+            browser.JavascriptObjectRepository.ResolveObject += (sender, e) =>
+            {
+                var repo = e.ObjectRepository;
+                if (e.ObjectName == "boundAsync")
+                {
+                    repo.Register("boundAsync", new BindingClass(), isAsync: true);
+                }
+            };
+
+            browser.ConsoleMessage += Browser_ConsoleMessage;
+        }
+
+        private void Browser_ConsoleMessage(object sender, ConsoleMessageEventArgs e)
+        {
+            tbxLog.Text = $"{tbxLog.Text}{Environment.NewLine}----------------------- {Environment.NewLine}MESSAGE: {e.Message} {Environment.NewLine} LINE: {e.Line}";
         }
 
         private void btnWhatsMyBrowser_Click(object sender, EventArgs e)
@@ -33,11 +54,22 @@ namespace CefSharpTest
 
         private void btnLoad_Click(object sender, EventArgs e)
         {
-            string link = tbxLink.Text;
-            if (Uri.IsWellFormedUriString(link, UriKind.RelativeOrAbsolute))
+            if (Uri.IsWellFormedUriString(tbxLink.Text, UriKind.RelativeOrAbsolute))
             {
-                browser.Load(link);
+                InitializeBrowser(tbxLink.Text);
             }
+        }
+
+        private void btnCsharpScript_Click(object sender, EventArgs e)
+        {
+            var script = @"
+                    (function() {
+                        document.getElementById('testCsharp').innerHTML = parseInt(document.getElementById('testCsharp').innerHTML, 10) + 1;
+                     }
+                    )()
+                ";
+
+            browser.ExecuteScriptAsync(script);
         }
     }
 }
